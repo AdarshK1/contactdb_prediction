@@ -1,7 +1,8 @@
 from models.voxnet import DiverseVoxNet as VoxNet
+from models.voxnet import VoxNetClassPred
 from models.pointnet import DiversePointNet as PointNet
 from models.losses import DiverseLoss
-from voxel_dataset import VoxelDataset
+from voxel_dataset import VoxelDataset, VoxelPredictionDataset
 from pointcloud_dataset import PointCloudDataset
 
 from ignite.engine import Engine, Events
@@ -61,6 +62,8 @@ def train(data_dir, instruction, config_file, experiment_suffix=None,
     lr_step_size = section.getint('lr_step_size', 10000)
     lr_gamma = section.getfloat('lr_gamma', 1.0)
 
+    voxnet_prediction = False
+
     # cuda
     if 'CUDA_VISIBLE_DEVICES' not in os.environ:
         os.environ['CUDA_VISIBLE_DEVICES'] = str(device_id)
@@ -75,7 +78,17 @@ def train(data_dir, instruction, config_file, experiment_suffix=None,
     kwargs = dict(data_dir=data_dir, instruction=instruction,
                   include_sessions=include_sessions, exclude_sessions=exclude_sessions,
                   n_ensemble=n_ensemble)
-    if 'voxnet' in model_name:
+    if 'voxnet_prediction' in model_name:
+        print("doing pred")
+        model = VoxNetClassPred(n_ensemble=n_ensemble, droprate=droprate)
+        grid_size = config['hyperparams'].getint('grid_size')
+        random_rotation = config['hyperparams'].getfloat('random_rotation')
+        train_dset = VoxelPredictionDataset(grid_size=grid_size,
+                                  random_rotation=random_rotation, train=True, **kwargs)
+        val_dset = VoxelPredictionDataset(grid_size=grid_size, random_rotation=0,
+                                train=False, **kwargs)
+        voxnet_prediction = True
+    elif 'voxnet' in model_name:
         model = VoxNet(n_ensemble=n_ensemble, droprate=droprate)
         grid_size = config['hyperparams'].getint('grid_size')
         random_rotation = config['hyperparams'].getfloat('random_rotation')
@@ -130,7 +143,11 @@ def train(data_dir, instruction, config_file, experiment_suffix=None,
     model.to(device=device)
 
     # loss function
-    loss_fn = DiverseLoss(beta=diverse_beta, pos_weight=pos_weight)
+    if voxnet_prediction:
+        loss_fn = torch.nn.CrossEntropyLoss()
+    else:
+        loss_fn = DiverseLoss(beta=diverse_beta, pos_weight=pos_weight)
+
     loss_fn.to(device=device)
     if do_val:
         val_loss_fn = DiverseLoss(beta=diverse_beta, train=False,
@@ -158,7 +175,11 @@ def train(data_dir, instruction, config_file, experiment_suffix=None,
         model.train()
         optim.zero_grad()
         tex_preds = model(geom)  # NxExP
-        loss, _ = loss_fn(tex_preds, tex_targs)
+        # print(tex_preds)
+        if voxnet_prediction:
+            loss = loss_fn(tex_preds, tex_targs)
+        else:
+            loss, _ = loss_fn(tex_preds, tex_targs)
         loss.backward()
         optim.step()
         engine.state.train_loss = loss.item()
@@ -180,7 +201,10 @@ def train(data_dir, instruction, config_file, experiment_suffix=None,
                 model.eval()
             with torch.no_grad():
                 tex_preds = model(geom)
-            loss, _ = val_loss_fn(tex_preds, tex_targs)
+            if voxnet_prediction:
+                loss = loss_fn(tex_preds, tex_targs)
+            else:
+                loss, _ = loss_fn(tex_preds, tex_targs)
             engine.state.val_loss = loss.item()
             return loss.item()
 
@@ -266,6 +290,7 @@ if __name__ == '__main__':
     parser.add_argument('--device_id', default=0)
     parser.add_argument('--include_sessions', default=None)
     parser.add_argument('--exclude_sessions', default=None)
+    parser.add_argument('--experimental', default=False)
     args = parser.parse_args()
 
     include_sessions = None

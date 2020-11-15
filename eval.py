@@ -66,8 +66,8 @@ def eval(data_dir, instruction, checkpoint_filename, config_filename, device_id,
   kwargs = dict(data_dir=data_dir, instruction=instruction, train=False,
     random_rotation=0, n_ensemble=-1, test_only=test_only)
   if 'voxnet' in model_name:
-    model = VoxNet(n_ensemble=checkpoint.n_ensemble, droprate=droprate)
-    model.voxnet.load_state_dict(checkpoint.voxnet.state_dict())
+    model = VoxNet(n_ensemble=config["hyperparams"].getint("n_ensemble"), droprate=droprate)
+    model.voxnet.load_state_dict(checkpoint, strict=False)
     grid_size = config['hyperparams'].getint('grid_size')
     dset = VoxelDataset(grid_size=grid_size, **kwargs)
   elif 'pointnet' in model_name:

@@ -65,6 +65,60 @@ class VoxNet(tnn.Module):
         x = self.upconv4(x)
         return x
 
+class VoxNetClassPred(tnn.Module):
+    def __init__(self, n_ensemble, inplanes=5, out_classes=69, droprate=0):
+        super(VoxNetClassPred, self).__init__()
+        self.droprate = droprate
+        self.drop = tnn.Dropout(p=droprate)
+
+        nc = inplanes
+        nc *= 4
+        self.conv1 = tnn.Conv3d(inplanes+n_ensemble, nc, kernel_size=3, padding=1, bias=False)
+        self.bn1 = tnn.BatchNorm3d(nc)
+        self.pool1 = tnn.MaxPool3d(2)
+
+        nc *= 4
+        self.conv2 = tnn.Conv3d(self.conv1.out_channels, nc,
+                                kernel_size=3, padding=1, bias=False)
+        self.bn2 = tnn.BatchNorm3d(nc)
+        self.pool2 = tnn.MaxPool3d(2)
+
+        nc *= 4
+        self.conv3 = tnn.Conv3d(self.conv2.out_channels, nc, kernel_size=3,
+                                padding=1, bias=False)
+        self.bn3 = tnn.BatchNorm3d(nc)
+        self.pool3 = tnn.MaxPool3d(4)
+
+        nc *= 4
+        self.conv4 = tnn.Conv3d(self.conv3.out_channels, nc, kernel_size=3,
+                                padding=1, bias=False)
+        self.bn4 = tnn.BatchNorm3d(nc)
+        self.pool4 = tnn.MaxPool3d(4)
+
+        self.fc1 = tnn.Linear(20480, 2000)
+        self.fc2 = tnn.Linear(2000, 250)
+        self.fc3 = tnn.Linear(250, out_classes)
+
+        for m in self.modules():
+            if isinstance(m, tnn.BatchNorm3d):
+                tnn.init.constant_(m.weight, 1)
+                tnn.init.constant_(m.bias, 0)
+
+    def forward(self, x):
+        if self.droprate > 0:
+            x = self.drop(x)
+        x = self.pool1(self.bn1(tnnF.relu(self.conv1(x))))
+        x = self.pool2(self.bn2(tnnF.relu(self.conv2(x))))
+        x = self.pool3(self.bn3(tnnF.relu(self.conv3(x))))
+        # x = self.pool4(self.bn4(tnnF.relu(self.conv4(x))))
+        # print(x.shape)
+        x = x.view(-1, 320 * 4 * 4 * 4)
+        # print(x.shape)
+        x = tnnF.relu(self.fc1(x))
+        x = tnnF.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
 
 class DiverseVoxNet(tnn.Module):
     def __init__(self, n_ensemble, inplanes=5, droprate=0):
