@@ -1,0 +1,18 @@
+program: train_val.py
+method: bayes
+metric:
+  name: train_loss
+  goal: minimize
+parameters:
+#  base_lr:
+#    min: 0.0001
+#    max: 0.01
+#  drop_rate:
+#    min: 0
+#    max: 0.35
+  fcn_size1:
+    min: 1500
+    max: 10000
+  fcn_size2:
+    min: 100
+    max: 500

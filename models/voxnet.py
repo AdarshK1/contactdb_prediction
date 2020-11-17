@@ -66,7 +66,7 @@ class VoxNet(tnn.Module):
         return x
 
 class VoxNetClassPred(tnn.Module):
-    def __init__(self, n_ensemble, inplanes=5, out_classes=69, droprate=0):
+    def __init__(self, n_ensemble, inplanes=5, out_classes=69, droprate=0, fcn_size1=2000, fcn_size2=250):
         super(VoxNetClassPred, self).__init__()
         self.droprate = droprate
         self.drop = tnn.Dropout(p=droprate)
@@ -95,9 +95,9 @@ class VoxNetClassPred(tnn.Module):
         self.bn4 = tnn.BatchNorm3d(nc)
         self.pool4 = tnn.MaxPool3d(4)
 
-        self.fc1 = tnn.Linear(20480, 2000)
-        self.fc2 = tnn.Linear(2000, 250)
-        self.fc3 = tnn.Linear(250, out_classes)
+        self.fc1 = tnn.Linear(20480, fcn_size1)
+        self.fc2 = tnn.Linear(fcn_size1, fcn_size2)
+        self.fc3 = tnn.Linear(fcn_size2, out_classes)
 
         for m in self.modules():
             if isinstance(m, tnn.BatchNorm3d):
@@ -116,7 +116,7 @@ class VoxNetClassPred(tnn.Module):
         # print(x.shape)
         x = tnnF.relu(self.fc1(x))
         x = tnnF.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = tnnF.tanh(self.fc3(x))
         return x
 
 

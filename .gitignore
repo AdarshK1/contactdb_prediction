@@ -1,6 +1,10 @@
 
 # Created by https://www.gitignore.io/api/vim,linux,macos,python,pycharm
 
+wandb
+.idea
+use_voxnet_prediction_diversenet/
+
 ### Linux ###
 *~
 

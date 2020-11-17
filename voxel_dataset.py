@@ -135,10 +135,10 @@ class VoxelPredictionDataset(tdata.Dataset):
             # print(filename)
             if '_solid.npy' not in filename:
                 continue
-            if test_only:
-                if 'testonly' not in filename:
-                    continue
-            else:
+            # if test_only:
+            #     if 'testonly' not in filename:
+            #         continue
+            if not test_only:
                 if 'testonly' in filename:
                     continue
 
@@ -174,15 +174,17 @@ class VoxelPredictionDataset(tdata.Dataset):
             self.filenames[(object_name, use)].append(filename)
 
     def __len__(self):
-        return len(self.filenames)
+        return len(self.filenames) * 50
 
     def __getitem__(self, index):
+
+        index = index % len(self.filenames)
         # load geometry
         object_name, use = list(self.filenames.keys())[index]
         one_hot = np.zeros((len(self.filenames.keys())))
         one_hot[index] = 1
         # print("onehot", one_hot.shape)
-        # print(object_name, use, self.filenames[(object_name, use)])
+        # print(object_name, use) #, self.filenames[(object_name, use)])
 
         x, y, z, c, xx, yy, zz = np.load(self.filenames[(object_name, use)][0])
         x, y, z = x.astype(int), y.astype(int), z.astype(int)
@@ -237,12 +239,13 @@ class VoxelPredictionDataset(tdata.Dataset):
         texs = np.stack(texs)
 
         # create occupancy grid
-        geom = np.zeros((5+self.n_ensemble, self.grid_size, self.grid_size, self.grid_size),
+        geom = np.zeros((5 + self.n_ensemble, self.grid_size, self.grid_size, self.grid_size),
                         dtype=np.float32)
-        geom[:5, z, y, x] = pts
+        # print("geom[5, z, y, x]", geom[0:5, z, y, x].shape, index)
+        geom[0:5, z, y, x] = pts
         # print("texs", texs[:, :, :, :].flatten().shape)
         # print("pts", pts.shape)
-        # print("geom[5, z, y, x]", geom[5, z, y, x].shape)
+        # print("geom[5, z, y, x]", geom[:5, z, y, x].shape, index)
         # print(geom.shape)
         geom[5:5+self.n_ensemble, :, :, :] = texs
 
