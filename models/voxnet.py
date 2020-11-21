@@ -116,7 +116,7 @@ class VoxNetClassPred(tnn.Module):
         # print(x.shape)
         x = tnnF.relu(self.fc1(x))
         x = tnnF.relu(self.fc2(x))
-        x = tnnF.tanh(self.fc3(x))
+        x = (self.fc3(x))
         return x
 
 

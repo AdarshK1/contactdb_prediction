@@ -67,20 +67,18 @@ def train(data_dir, instruction, config_file, experiment_suffix=None,
     voxnet_prediction = False
 
     hyperparameter_defaults = dict(
-        learning_rate=0.001,
-        fcn_size=20,
-        num_workers=12,
+        num_workers=48,
         grid_size=64,
         random_rotation=180,
         n_ensemble=1,
         diverse_beta=1,
         pos_weight=10,
-        droprate=0.1,
+        droprate=0.0,
         lr_step_size=1000,
         lr_gamma=0.1,
 
-        batch_size=32,
-        max_epochs=50,
+        batch_size=30,
+        max_epochs=1500,
         val_interval=10,
         weight_decay=0.00025,
         base_lr=0.001,
@@ -88,9 +86,8 @@ def train(data_dir, instruction, config_file, experiment_suffix=None,
 
         log_interval=20,
         shuffle=True,
-        fcn_size1=2000,
-        fcn_size2=250,
-    )
+        fcn_size1=3488,
+        fcn_size2=468,)
 
     dt = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
     wandb.init(project="contactdb", name=dt, config=hyperparameter_defaults)
@@ -277,8 +274,8 @@ def train(data_dir, instruction, config_file, experiment_suffix=None,
                         "Loss: {:02.4f} lr: {:.4f}".
                         format(exp_name, engine.state.epoch, config.max_epochs, it + 1, len(train_dloader),
                                engine.state.output, lr_scheduler.get_lr()[0]))
-            epoch = engine.state.epoch - 1 + \
-                    float(it) / (len(train_dloader) - 1)
+            # epoch = engine.state.epoch - 1 + \
+            #         float(it) / (len(train_dloader) - 1)
 
             # vis.line(X=np.array([epoch]), Y=np.array([engine.state.output]),
             #          update='append', win=loss_win, env=exp_name, name='train_loss')
@@ -324,32 +321,31 @@ def train(data_dir, instruction, config_file, experiment_suffix=None,
 
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--data_dir',
-    #                     default=osp.join('data', 'voxelized_meshes'))
-    # parser.add_argument('--checkpoint_dir',
-    #                     default=osp.join('data', 'checkpoints'))
-    # parser.add_argument('--instruction', required=False, default="use")
-    # parser.add_argument('--config_file', required=False, default="config/voxnet_prediction.ini")
-    # parser.add_argument('--weights_file', default=None)
-    # parser.add_argument('--suffix', default=None)
-    # parser.add_argument('--device_id', default=0)
-    # parser.add_argument('--include_sessions', default=None)
-    # parser.add_argument('--exclude_sessions', default=None)
-    # parser.add_argument('--experimental', default=False)
-    # args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_dir',
+                        default=osp.join('data', 'voxelized_meshes'))
+    parser.add_argument('--checkpoint_dir',
+                        default=osp.join('data', 'checkpoints'))
+    parser.add_argument('--instruction', required=False, default="use")
+    parser.add_argument('--config_file', required=False, default="configs/voxnet_prediction.ini")
+    parser.add_argument('--weights_file', default=None)
+    parser.add_argument('--suffix', default=None)
+    parser.add_argument('--device_id', default=0)
+    parser.add_argument('--include_sessions', default=None)
+    parser.add_argument('--exclude_sessions', default=None)
+    args = parser.parse_args()
 
-    # include_sessions = None
-    # if args.include_sessions is not None:
-    #     include_sessions = args.include_sessions.split(',')
-    # exclude_sessions = None
-    # if args.exclude_sessions is not None:
-    #     exclude_sessions = args.exclude_sessions.split(',')
+    include_sessions = None
+    if args.include_sessions is not None:
+        include_sessions = args.include_sessions.split(',')
+    exclude_sessions = None
+    if args.exclude_sessions is not None:
+        exclude_sessions = args.exclude_sessions.split(',')
 
-    # train(osp.expanduser(args.data_dir), args.instruction, args.config_file,
-    #       experiment_suffix=args.suffix, device_id=args.device_id,
-    #       checkpoint_dir=osp.expanduser(args.checkpoint_dir),
-    #       weights_filename=args.weights_file, include_sessions=include_sessions,
-    #       exclude_sessions=exclude_sessions)
+    train(osp.expanduser(args.data_dir), args.instruction, args.config_file,
+          experiment_suffix=args.suffix, device_id=args.device_id,
+          checkpoint_dir=osp.expanduser(args.checkpoint_dir),
+          weights_filename=args.weights_file, include_sessions=include_sessions,
+          exclude_sessions=exclude_sessions)
 
-    train(osp.expanduser(osp.join('data', 'voxelized_meshes')), "use", "configs/voxnet_prediction.ini")
+    # train(osp.expanduser(osp.join('data', 'voxelized_meshes')), "use", "configs/voxnet_prediction.ini")

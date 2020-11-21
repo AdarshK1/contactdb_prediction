@@ -135,6 +135,9 @@ class VoxelPredictionDataset(tdata.Dataset):
             # print(filename)
             if '_solid.npy' not in filename:
                 continue
+            # if 'banana' not in filename:
+            #     continue
+            # print(filename)
             # if test_only:
             #     if 'testonly' not in filename:
             #         continue
@@ -174,7 +177,7 @@ class VoxelPredictionDataset(tdata.Dataset):
             self.filenames[(object_name, use)].append(filename)
 
     def __len__(self):
-        return len(self.filenames) * 50
+        return len(self.filenames)
 
     def __getitem__(self, index):
 
