@@ -176,6 +176,8 @@ class VoxelPredictionDataset(tdata.Dataset):
 
             self.filenames[(object_name, use)].append(filename)
 
+        # print(self.filenames.keys())
+
     def __len__(self):
         return len(self.filenames)
 

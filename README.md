@@ -1,5 +1,21 @@
 # [ContactDB: Analyzing and Predicting Grasp Contact via Thermal Imaging](https://contactdb.cc.gatech.edu)
 
+## Forked Notes:
+
+Full credit given to this repo and this paper; I did a small amount of work as part of CIS 700 with Professor Dinesh Jayaraman
+exploring current literature and code in data-driven robotic perception and control: [link](https://sites.google.com/view/penn-data-driven-robotics/home).
+
+We adapted the Voxelnet architecture presented in this paper to be an object+use classifier for contactmaps, as opposed
+to a contactmap predictor from geometry. We use ~70 total output classes, corresponding to a single object and use combo (e.g. Bananas for use, or Bottles for handoff).
+
+We achieve quite high accuracy, but the network most likely overfits on the training data. Still, this effort is less of a 
+production use-case, and more of an architectural and pipeline validation. 
+
+It should be noted that we also retrain the base Voxelnet contactmap output model and achieve comparable accuracy to the paper results.
+
+
+## Rest of Readme
+
 `python train_val.py --instruction use --config configs/voxnet.ini --device 0 --checkpoint_dir data/checkpoints --data_dir data/voxelized_meshes`
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/contactdb-analyzing-and-predicting-grasp/human-grasp-contact-prediction-on-contactdb)](https://paperswithcode.com/sota/human-grasp-contact-prediction-on-contactdb?p=contactdb-analyzing-and-predicting-grasp)

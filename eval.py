@@ -17,6 +17,24 @@ from IPython.core.debugger import set_trace
 
 osp = os.path
 
+classes = [('light_bulb', 'use'), ('knife', 'use'), ('camera', 'handoff'), ('cylinder_small', 'handoff'),
+           ('rubber_duck', 'handoff'), ('alarm_clock', 'handoff'), ('cylinder_medium', 'handoff'),
+           ('cube_large', 'handoff'), ('mouse', 'use'), ('cylinder_large', 'handoff'), ('apple', 'handoff'),
+           ('utah_teapot', 'use'), ('sphere_small', 'handoff'), ('camera', 'use'), ('toothbrush', 'use'),
+           ('stanford_bunny', 'handoff'), ('apple', 'use'), ('sphere_medium', 'handoff'), ('pyramid_large', 'handoff'),
+           ('utah_teapot', 'handoff'), ('airplane', 'handoff'), ('sphere_large', 'handoff'), ('scissors', 'use'),
+           ('hammer', 'handoff'), ('piggy_bank', 'handoff'), ('torus_large', 'handoff'), ('bowl', 'handoff'),
+           ('toothpaste', 'use'), ('flashlight', 'handoff'), ('toothbrush', 'handoff'), ('cup', 'handoff'),
+           ('eyeglasses', 'use'), ('door_knob', 'use'), ('banana', 'handoff'), ('cell_phone', 'use'),
+           ('cube_medium', 'handoff'), ('hammer', 'use'), ('flute', 'handoff'), ('hand', 'use'),
+           ('mouse', 'handoff'), ('train', 'handoff'), ('stapler', 'use'), ('torus_small', 'handoff'),
+           ('toothpaste', 'handoff'), ('flute', 'use'), ('binoculars', 'handoff'), ('flashlight', 'use'),
+           ('water_bottle', 'use'), ('water_bottle', 'handoff'), ('cell_phone', 'handoff'), ('elephant', 'handoff'),
+           ('torus_medium', 'handoff'), ('light_bulb', 'handoff'), ('wristwatch', 'handoff'),
+           ('pyramid_medium', 'handoff'), ('headphones', 'handoff'), ('cube_small', 'handoff'),
+           ('eyeglasses', 'handoff'), ('pyramid_small', 'handoff'), ('knife', 'handoff'), ('stapler', 'handoff'),
+           ('banana', 'use'), ('ps_controller', 'handoff'), ('bowl', 'use'), ('cup', 'use'), ('binoculars', 'use'),
+           ('headphones', 'use'), ('scissors', 'handoff'), ('ps_controller', 'use')]
 
 def show_pointcloud_texture(geom, tex_preds):
     cmap = np.asarray([[0, 0, 1], [1, 0, 0]])
@@ -67,12 +85,16 @@ def eval(data_dir, instruction, checkpoint_filename, config_filename, device_id,
     # create model
     model_name = osp.split(config_filename)[1].split('.')[0]
     kwargs = dict(data_dir=data_dir, instruction=instruction, train=True,
-                  random_rotation=1, n_ensemble=1, test_only=False)
+                  random_rotation=180, n_ensemble=1, test_only=False)
 
     voxnet_prediction = False
     if 'voxnet_prediction' in model_name:
         print("doing pred")
-        model = VoxNetClassPred(n_ensemble=1, droprate=droprate)
+        # model = VoxNetClassPred(n_ensemble=1, droprate=droprate)
+        model = VoxNetClassPred(n_ensemble=1, droprate=0.0, fcn_size1=3488,
+                                fcn_size2=468)
+        # print(checkpoint)
+        model.load_state_dict(checkpoint)
         grid_size = config['hyperparams'].getint('grid_size')
         dset = VoxelPredictionDataset(grid_size=grid_size, **kwargs)
         voxnet_prediction = True
@@ -100,53 +122,88 @@ def eval(data_dir, instruction, checkpoint_filename, config_filename, device_id,
 
     # eval loop!
     dloader = DataLoader(dset)
-    for batch_idx, batch in enumerate(dloader):
-        object_name = list(dset.filenames.keys())[batch_idx]
-        if show_object is not None:
-            if object_name != show_object:
-                continue
-        geom, tex_targs = batch
-        geom = geom.to(device=device)
-        tex_targs = tex_targs.to(device=device)
-        with torch.no_grad():
-            tex_preds = model(geom)
+    epochs = 500
 
-        if voxnet_prediction:
-          loss = loss_fn(tex_preds, tex_targs)
-        else:
-          loss, _ = loss_fn(tex_preds, tex_targs)
-        actual_name, use = object_name
-        print(tex_preds, tex_targs)
-        print('{:s}, {:s} error = {:.4f}'.format(actual_name, use, loss.item()))
+    for e in range(epochs):
+        print(e)
+        print("_" * 50)
+        checkpoint_filename_arr = []
+        geom_arr = []
+        tex_preds_arr = []
+        gt_label_arr = []
+        pred_label_arr = []
+        tex_targs_arr = []
+        for batch_idx, batch in enumerate(dloader):
+            object_name = list(dset.filenames.keys())[batch_idx]
+            if show_object is not None:
+                if object_name != show_object:
+                    continue
+            geom, tex_targs = batch
+            geom = geom.to(device=device)
+            tex_targs = tex_targs.to(device=device)
+            with torch.no_grad():
+                tex_preds = model(geom)
 
-        geom = geom.cpu().numpy().squeeze()
-        tex_preds = tex_preds.cpu().numpy().squeeze()
-        match_indices = None
-        if not voxnet_prediction:
-          match_indices = match_indices.cpu().numpy().squeeze()
-        tex_targs = tex_targs.cpu().numpy().squeeze()
-
-        if save_preds:
-            output_data = {
-                'checkpoint_filename': checkpoint_filename,
-                'geom': geom,
-                'tex_preds': tex_preds,
-                'match_indices': match_indices,
-                'tex_targs': tex_targs}
-            output_filename = '{:s}_{:s}_{:s}_diversenet_preds.pkl'.format(object_name,
-                                                                           instruction, model_name)
-            with open(output_filename, 'wb') as f:
-                pickle.dump(output_data, f)
-            print('{:s} saved'.format(output_filename))
-
-        if show_object is not None:
-            if 'pointnet' in model_name:
-                show_pointcloud_texture(geom, tex_preds)
-            elif 'voxnet' in model_name:
-                show_voxel_texture(geom, tex_preds)
-                break
+            if voxnet_prediction:
+              loss = loss_fn(tex_preds, tex_targs)
             else:
-                raise NotImplementedError
+              loss, _ = loss_fn(tex_preds, tex_targs)
+            actual_name, use = object_name
+            # print(tex_preds, tex_targs, tex_targs.item()) #tex_preds[0][tex_targs.item().cpu()])
+            print('{:s}, {:s} error = {:.4f}'.format(actual_name, use, loss.item()))
+            pred_idx = torch.argmax(tex_preds).item()
+            gt_idx = tex_targs.item()
+            # print(pred_idx, gt_idx)
+
+            if gt_idx != pred_idx:
+                print("Confused {} for a {}!".format(classes[gt_idx], classes[pred_idx]))
+
+            geom = geom.cpu().numpy().squeeze()
+            tex_preds = tex_preds.cpu().numpy().squeeze()
+            match_indices = None
+            if not voxnet_prediction:
+              match_indices = match_indices.cpu().numpy().squeeze()
+            tex_targs = tex_targs.cpu().numpy().squeeze()
+
+            if save_preds:
+                if voxnet_prediction:
+                    checkpoint_filename_arr.append(checkpoint_filename)
+                    geom_arr.append(geom)
+                    tex_preds_arr.append(tex_preds)
+                    gt_label_arr.append(classes[gt_idx])
+                    pred_label_arr.append(classes[pred_idx])
+                    tex_targs_arr.append(tex_targs)
+
+                else:
+                    output_data = {
+                        'checkpoint_filename': checkpoint_filename,
+                        'geom': geom,
+                        'tex_preds': tex_preds,
+                        'match_indices': match_indices,
+                        'tex_targs': tex_targs}
+                    output_filename = '{:s}_{:s}_{:s}_diversenet_preds.pkl'.format(object_name,
+                                                                                   instruction, model_name)
+
+        output_data = {
+            'checkpoint_filename': checkpoint_filename_arr,
+            # 'geom': geom_arr,
+            'tex_preds': tex_preds_arr,
+            'gt_label': gt_label_arr,
+            'pred_label': pred_label_arr,
+            'tex_targs': tex_targs_arr}
+        output_filename = 'data/pkls/{:s}_{:s}_voxnet_pred_preds.pkl'.format(str(e), model_name)
+        with open(output_filename, 'wb') as f:
+            pickle.dump(output_data, f)
+        print('{:s} saved'.format(output_filename))
+
+            # if show_object is not None:
+            #     if 'pointnet' in model_name:
+            #         show_pointcloud_texture(geom, tex_preds)
+            #     elif 'voxnet' in model_name:
+            #         show_voxel_texture(geom, tex_preds)
+            #         break
+            #     else:
+            #         raise NotImplementedError
 
 
 if __name__ == '__main__':
@@ -163,4 +220,4 @@ if __name__ == '__main__':
     eval(osp.expanduser(args.data_dir), args.instruction,
          osp.expanduser(args.checkpoint_filename),
          osp.expanduser(args.config_filename), args.device_id,
-         test_only=args.test_only, show_object=args.show_object)
+         test_only=args.test_only, show_object=args.show_object, save_preds=True)
